@@ -1,0 +1,317 @@
+# helena_core/kernel/modes.py
+"""
+Operational modes and their processing pipelines
+"""
+from enum import Enum, auto
+from typing import Dict, Any, Optional, Callable, List
+import time
+import logging
+from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+class OperationalMode(Enum):
+    """HELENA's operational modes"""
+    ENGINEERING = auto()    # Full capabilities, verbose output
+    TOOL = auto()           # Minimal output, execution focused
+    DEFENSIVE = auto()      # High-speed, security focused
+    BACKGROUND = auto()     # Low-resource, gaming compatible
+
+@dataclass
+class ModeConfig:
+    """Configuration for an operational mode"""
+    max_workers: int
+    response_time_target: float  # seconds
+    resource_multiplier: float  # 0.0-1.0
+    personality_enabled: bool
+    validation_strictness: int  # 1-3
+    learning_enabled: bool
+
+class ModeProcessor:
+    """Process tasks according to current operational mode"""
+    
+    def __init__(self, kernel=None):
+        self.kernel = kernel
+        self.processors: Dict[OperationalMode, Callable] = {}
+        self.configs: Dict[OperationalMode, ModeConfig] = {}
+        
+    def load_processors(self):
+        """Load mode-specific processors"""
+        self.processors = {
+            OperationalMode.ENGINEERING: self._process_engineering,
+            OperationalMode.TOOL: self._process_tool,
+            OperationalMode.DEFENSIVE: self._process_defensive,
+            OperationalMode.BACKGROUND: self._process_background,
+        }
+        
+        self.configs = {
+            OperationalMode.ENGINEERING: ModeConfig(
+                max_workers=4,
+                response_time_target=2.0,
+                resource_multiplier=0.7,
+                personality_enabled=True,
+                validation_strictness=3,
+                learning_enabled=True
+            ),
+            OperationalMode.TOOL: ModeConfig(
+                max_workers=2,
+                response_time_target=1.0,
+                resource_multiplier=0.3,
+                personality_enabled=False,
+                validation_strictness=2,
+                learning_enabled=False
+            ),
+            OperationalMode.DEFENSIVE: ModeConfig(
+                max_workers=8,
+                response_time_target=0.5,
+                resource_multiplier=1.0,
+                personality_enabled=False,
+                validation_strictness=3,
+                learning_enabled=False
+            ),
+            OperationalMode.BACKGROUND: ModeConfig(
+                max_workers=1,
+                response_time_target=5.0,
+                resource_multiplier=0.1,
+                personality_enabled=False,
+                validation_strictness=1,
+                learning_enabled=True
+            )
+        }
+        
+        logger.info("ModeProcessor loaded")
+    
+    def process(self, mode: OperationalMode, task) -> Dict[str, Any]:
+        """Process task according to mode"""
+        processor = self.processors.get(mode)
+        if not processor:
+            logger.error(f"No processor for mode: {mode}")
+            return {"error": f"Unsupported mode: {mode}"}
+        
+        start_time = time.time()
+        
+        try:
+            result = processor(task)
+            processing_time = time.time() - start_time
+            result["processing_time"] = processing_time
+            result["mode"] = mode.name
+            
+            config = self.configs.get(mode)
+            if config and processing_time > config.response_time_target:
+                result["performance_warning"] = f"Slow response: {processing_time:.2f}s"
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Mode processing failed: {e}")
+            return {
+                "error": str(e),
+                "mode": mode.name,
+                "processing_time": time.time() - start_time
+            }
+    
+    def _process_engineering(self, task) -> Dict[str, Any]:
+        """Engineering mode - comprehensive analysis and verbose output"""
+        command = task.command
+
+        # AEGIS security commands
+        if command == "chat":
+            message = task.parameters.get("message", "")
+            aegis = getattr(self.kernel, "aegis", None)
+            if aegis:
+                import re
+                msg = message.lower().strip()
+
+                if any(kw in msg for kw in ["security status", "threat level", "aegis status", "security briefing"]):
+                    return {"result": aegis.format_status_for_helena(), "processing_time": 0.0}
+
+                if "security pending" in msg or "pending approval" in msg:
+                    pending = aegis.pending()
+                    if not pending:
+                        return {"result": "No security responses pending approval.", "processing_time": 0.0}
+                    lines = ["Pending responses requiring your approval:"]
+                    for p in pending:
+                        lines.append(f"  ID: {p['id']} — {p['description']}")
+                    lines.append("\nTo approve: 'approve security response <id> <reason>'")
+                    return {"result": "\n".join(lines), "processing_time": 0.0}
+
+                approve_match = re.search(r"approve\s+(?:security\s+)?response\s+([a-f0-9]+)\s+(.+)", msg)
+                if approve_match:
+                    pkg_id = approve_match.group(1)
+                    reason = approve_match.group(2).strip()
+                    ok = aegis.approve(pkg_id, reason)
+                    return {"result": f"Approval sent for {pkg_id}." if ok else "Approval failed — AEGIS not connected.", "processing_time": 0.0}
+
+                reject_match = re.search(r"reject\s+(?:security\s+)?response\s+([a-f0-9]+)", msg)
+                if reject_match:
+                    pkg_id = reject_match.group(1)
+                    aegis.reject(pkg_id)
+                    return {"result": f"Response {pkg_id} rejected.", "processing_time": 0.0}
+
+            # existing chat handling continues below
+            chat_engine = getattr(self.kernel, 'chat_engine', None)
+            llm = getattr(self.kernel, 'llm', None)
+
+            if chat_engine:
+                response = chat_engine.chat(message)
+            elif llm:
+                response = llm.generate(
+                    prompt=f"You are HELENA. User: {message}\nHELENA:",
+                    max_tokens=50000, temperature=0.7
+                )
+            else:
+                response = None
+
+            return {
+                "result": response or f"Received: {message}",
+                "processing_time": 0.1,
+                "details_level": "high"
+            }
+
+        if command == "code_read":
+            path = task.parameters.get("path", "")
+            code_editor = getattr(self.kernel, 'code_editor', None)
+            if not code_editor:
+                return {"result": "CodeEditor not available.", "processing_time": 0.0}
+            result = code_editor.read_file(path)
+            if result["ok"]:
+                return {"result": result["content"], "path": path, "lines": result["lines"], "processing_time": 0.0}
+            return {"result": f"Error: {result['error']}", "processing_time": 0.0}
+
+        if command == "code_write":
+            path = task.parameters.get("path", "")
+            content = task.parameters.get("content", "")
+            reason = task.parameters.get("reason", "")
+            code_editor = getattr(self.kernel, 'code_editor', None)
+            if not code_editor:
+                return {"result": "CodeEditor not available.", "processing_time": 0.0}
+            result = code_editor.write_file(path, content, reason=reason)
+            if result["ok"]:
+                return {"result": f"Written: {path} ({result['bytes_written']} bytes)", "processing_time": 0.0}
+            return {"result": f"Write failed: {result['error']}", "processing_time": 0.0}
+
+        if command == "code_search":
+            query = task.parameters.get("query", "")
+            subdir = task.parameters.get("subdir", "")
+            code_editor = getattr(self.kernel, 'code_editor', None)
+            if not code_editor:
+                return {"result": "CodeEditor not available.", "processing_time": 0.0}
+            result = code_editor.search_code(query, subdir=subdir)
+            lines = [f"{m['file']}:{m['line']} — {m['text']}" for m in result["matches"][:20]]
+            return {"result": "\n".join(lines) or "No matches found.", "processing_time": 0.0}
+
+        if command == "code_list":
+            subdir = task.parameters.get("subdir", "")
+            code_editor = getattr(self.kernel, 'code_editor', None)
+            if not code_editor:
+                return {"result": "CodeEditor not available.", "processing_time": 0.0}
+            result = code_editor.list_files(subdir=subdir)
+            return {"result": "\n".join(result["files"]), "processing_time": 0.0}
+
+        analysis = self._analyze_task_engineering(task)
+        solutions = self._generate_solutions(analysis)
+        evaluation = self._evaluate_solutions(solutions)
+        recommendation = self._select_recommendation(evaluation)
+        
+        return {
+            "analysis": analysis,
+            "solutions": solutions,
+            "evaluation": evaluation,
+            "recommendation": recommendation,
+            "confidence": self._calculate_confidence(evaluation),
+            "details_level": "high"
+        }
+
+    def _process_tool(self, task) -> Dict[str, Any]:
+        """Tool mode - minimal output, direct execution"""
+        result = self._execute_directly(task)
+        return {
+            "result": result,
+            "success": True if result else False,
+            "details_level": "minimal"
+        }
+    
+    def _process_defensive(self, task) -> Dict[str, Any]:
+        """Defensive mode - security focused, rapid response"""
+        security_check = self._security_scan(task)
+        if not security_check["passed"]:
+            return {
+                "error": "Security check failed",
+                "security_issues": security_check["issues"],
+                "action": "blocked",
+                "details_level": "security"
+            }
+        result = self._execute_with_monitoring(task)
+        return {
+            "result": result,
+            "security_check": security_check,
+            "monitoring": self._get_monitoring_data(),
+            "details_level": "security"
+        }
+    
+    def _process_background(self, task) -> Dict[str, Any]:
+        """Background mode - low priority, resource efficient"""
+        if self._should_defer_task(task):
+            return {
+                "deferred": True,
+                "reason": "Low priority background task",
+                "scheduled_time": time.time() + 300,
+                "details_level": "minimal"
+            }
+        result = self._execute_efficiently(task)
+        return {
+            "result": result,
+            "efficiency_metrics": self._calculate_efficiency(),
+            "details_level": "minimal"
+        }
+    
+    def _analyze_task_engineering(self, task) -> Dict[str, Any]:
+        return {"complexity": "medium", "type": task.command}
+    
+    def _generate_solutions(self, analysis) -> List[Dict[str, Any]]:
+        return [{"approach": "standard", "steps": 3}]
+    
+    def _evaluate_solutions(self, solutions) -> Dict[str, Any]:
+        return {"best_solution": 0, "scores": [0.8]}
+    
+    def _select_recommendation(self, evaluation) -> Dict[str, Any]:
+        return {"action": "proceed", "steps": ["Execute standard approach"]}
+    
+    def _calculate_confidence(self, evaluation) -> float:
+        return 0.85
+    
+    def _execute_directly(self, task):
+        return {"executed": task.command}
+    
+    def _security_scan(self, task) -> Dict[str, Any]:
+        return {"passed": True, "issues": []}
+    
+    def _execute_with_monitoring(self, task):
+        return {"executed": task.command, "monitored": True}
+    
+    def _get_monitoring_data(self):
+        return {"active": True, "checks": 3}
+    
+    def _should_defer_task(self, task) -> bool:
+        return False
+    
+    def _execute_efficiently(self, task):
+        return {"executed": task.command, "efficient": True}
+    
+    def _calculate_efficiency(self):
+        return {"cpu_usage": 0.1, "memory_usage": 0.05}
+    
+    def get_mode_config(self, mode: OperationalMode) -> Optional[ModeConfig]:
+        """Get configuration for a mode"""
+        return self.configs.get(mode)
+    
+    def update_mode_config(self, mode: OperationalMode, **kwargs):
+        """Update mode configuration"""
+        if mode in self.configs:
+            config = self.configs[mode]
+            for key, value in kwargs.items():
+                if hasattr(config, key):
+                    setattr(config, key, value)
+            logger.info(f"Updated config for mode: {mode.name}")
+
+
