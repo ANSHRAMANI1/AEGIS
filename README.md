@@ -52,7 +52,7 @@ AEGIS is split into focused, independent modules:
 - Vector memory via ChromaDB (384-dimension embeddings, up to 100,000 entries)
 - Relational knowledge graph via NetworkX
 - Semantic similarity search with configurable threshold
-- Persistent across sessions — HELENA remembers past conversations
+- Persistent across sessions — AEGIS remembers past conversations
 
 **Emotion Engine**
 - 8 emotions: Curiosity, Satisfaction, Frustration, Concern, Enthusiasm, Calm, Determination, Empathy
