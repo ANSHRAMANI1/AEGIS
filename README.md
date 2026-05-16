@@ -326,6 +326,6 @@ MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-*AEGIS is a personal research project — not production software. Built by [ANSHRAMANI1](https://github.com/ANSHRAMANI1).*
+*AEGIS is a personal research project not production software. Built by [ANSHRAMANI1](https://github.com/ANSHRAMANI1).*
 
 **Interested in a custom local AI assistant or agent framework?** [Hire me on Upwork](https://www.upwork.com/freelancers/~0169dbb8a7f7cf38e6)
