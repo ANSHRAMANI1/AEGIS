@@ -15,10 +15,10 @@
 
 Most AI assistants live in the cloud, forget everything between sessions, and have no real personality. **AEGIS** is different.
 
-AEGIS is a fully local, self-contained AI assistant framework built around **HELENA** (the core intelligence layer) — designed to run on your own desktop, remember your conversations, adapt its personality, and eventually improve itself over time.
+AEGIS is a fully local, self-contained AI assistant framework built around **AEGIS** (the core intelligence layer) — designed to run on your own desktop, remember your conversations, adapt its personality, and eventually improve itself over time.
 
 ```
-You talk to HELENA
+You talk to AEGIS
   ↓
 She remembers you (ChromaDB + Knowledge Graph)
   ↓
@@ -67,7 +67,7 @@ AEGIS is split into focused, independent modules:
 **LLM Backend (HybridLLM)**
 - Priority chain: Ollama (Mistral) → LocalLLM (GGUF) → SimpleFallback
 - Entirely offline-capable — no OpenAI API key needed
-- Designed to slot in HELENA's own fine-tuned model when ready
+- Designed to slot in AEGIS's own fine-tuned model when ready
 
 **Self-Training Pipeline**
 - Scheduled: daily at 2am, weekly deep run on Sundays
@@ -108,7 +108,7 @@ AEGIS/
 │
 ├── aegis_core/                  # Core systems
 │   ├── kernel/
-│   │   ├── core.py              # HELENAKernel — central authority  [PROTECTED]
+│   │   ├── core.py              # AEGISKernel — central authority  [PROTECTED]
 │   │   ├── modes.py             # ModeProcessor — routes tasks
 │   │   ├── emotion.py           # EmotionEngine — 8 emotions with decay
 │   │   ├── personality.py       # PersonalityEngine + ResponseFormatter
@@ -235,7 +235,7 @@ All behavior is controlled via `config.yaml` — no code changes needed for most
 
 ```yaml
 system:
-  name: "HELENA"
+  name: "AEGIS"
   operator: "Phase-Null"
   mode: "ENGINEERING"
 
@@ -271,7 +271,7 @@ training:
 | Phase 1 | ✅ Complete | Core kernel, memory, emotion, GUI |
 | Phase 2 | ✅ Complete | Chat engine, HybridLLM, training scheduler |
 | Phase 3 | 🔄 In Progress | Structured FactStore, training integration, response refinement |
-| Phase 4 | 📋 Planned | HELENA's own fine-tuned model, voice interface |
+| Phase 4 | 📋 Planned | AEGIS's own fine-tuned model, voice interface |
 
 ### Known Limitations
 
@@ -303,7 +303,7 @@ AEGIS is built with safety constraints embedded at the architecture level:
 
 - **Kill switch** — immediate shutdown, never auto-modified
 - **Protected files** — `core.py`, `kill_switch.py`, `start_helena.py` cannot be self-edited
-- **No autonomous self-upgrade** — HELENA can read and propose edits, but not deploy to GitHub
+- **No autonomous self-upgrade** — AEGIS can read and propose edits, but not deploy to GitHub
 - **Sandboxed training** — all self-generated code runs in an isolated sandbox before any patch is considered
 - **Permission system** — every task validated against mode × source × command matrix
 
@@ -327,3 +327,5 @@ MIT — see [LICENSE](LICENSE) for details.
 ---
 
 *AEGIS is a personal research project — not production software. Built by [ANSHRAMANI1](https://github.com/ANSHRAMANI1).*
+
+**Interested in a custom local AI assistant or agent framework?** [Hire me on Upwork](https://www.upwork.com/freelancers/~0169dbb8a7f7cf38e6)
